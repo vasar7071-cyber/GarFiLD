@@ -1,0 +1,33 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: chatx
+    ports:
+      - '5432:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+  redis:
+    image: redis:7
+    ports:
+      - '6379:6379'
+  backend:
+    build: ./packages/backend
+    env_file:
+      - ./packages/backend/.env.example
+    ports:
+      - '3000:3000'
+    depends_on:
+      - db
+      - redis
+  frontend:
+    build: ./packages/frontend
+    ports:
+      - '5173:5173'
+    depends_on:
+      - backend
+volumes:
+  db-data:

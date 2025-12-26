@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String         @id @default(uuid())
+  email        String         @unique
+  name         String?
+  password     String
+  avatarUrl    String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  refreshTokens RefreshToken[]
+  serverMemberships ServerMember[]
+  ownedServers Server[] @relation("OwnerServers")
+  messages Message[]
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Server {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  ownerId     String
+  owner       User          @relation("OwnerServers", fields: [ownerId], references: [id])
+  visibility  String        @default("private")
+  createdAt   DateTime      @default(now())
+  members     ServerMember[]
+  channels    Channel[]
+  roles       Role[]
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  server      Server   @relation(fields: [serverId], references: [id])
+  serverId    String
+  name        String
+  permissions Json
+}
+
+model ServerMember {
+  id        String   @id @default(uuid())
+  server    Server   @relation(fields: [serverId], references: [id])
+  serverId  String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  role      Role?    @relation(fields: [roleId], references: [id])
+  roleId    String?
+  joinedAt  DateTime @default(now())
+}
+
+model Channel {
+  id        String   @id @default(uuid())
+  server    Server   @relation(fields: [serverId], references: [id])
+  serverId  String
+  name      String
+  type      String   @default("text")
+  topic     String?
+  createdAt DateTime @default(now())
+  messages  Message[]
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  channel    Channel  @relation(fields: [channelId], references: [id])
+  channelId  String
+  author     User     @relation(fields: [authorId], references: [id])
+  authorId   String
+  content    String
+  attachments Json?
+  createdAt  DateTime @default(now())
+  editedAt    DateTime?
+  deleted     Boolean  @default(false)
+}

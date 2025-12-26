@@ -1,0 +1,640 @@
+openapi: 3.0.3
+info:
+  title: ChatX API
+  version: 0.1.0
+  description: OpenAPI спецификация REST API для приложения чатов (серверы, каналы, DM, RTC, уведомления)
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        data:
+          nullable: true
+    ErrorResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        avatarUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        lastSeen:
+          type: string
+          format: date-time
+    AuthRegister:
+      type: object
+      required: [name,email,password]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+    AuthLogin:
+      type: object
+      required: [email,password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+    Server:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        ownerId:
+          type: string
+          format: uuid
+        visibility:
+          type: string
+          enum: [public, private]
+        createdAt:
+          type: string
+          format: date-time
+    Channel:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        serverId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum: [text, voice]
+        topic:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        channelId:
+          type: string
+          format: uuid
+        authorId:
+          type: string
+          format: uuid
+        content:
+          type: string
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+              type:
+                type: string
+        createdAt:
+          type: string
+          format: date-time
+    CreateMessage:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+              type:
+                type: string
+    DMThread:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        isGroup:
+          type: boolean
+        participantIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        lastActivityAt:
+          type: string
+          format: date-time
+    Role:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        serverId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        type:
+          type: string
+        payload:
+          type: object
+        read:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    RTCSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        serverId:
+          type: string
+          format: uuid
+          nullable: true
+        channelId:
+          type: string
+          format: uuid
+          nullable: true
+        ownerId:
+          type: string
+          format: uuid
+        isActive:
+          type: boolean
+        startedAt:
+          type: string
+          format: date-time
+paths:
+  /api/auth/register:
+    post:
+      summary: Регистрация пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRegister'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/auth/login:
+    post:
+      summary: Вход
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthLogin'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/AuthResponse'
+  /api/auth/refresh:
+    post:
+      summary: Обновить access token (читает refresh-token из cookie)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      accessToken:
+                        type: string
+  /api/auth/logout:
+    post:
+      summary: Logout (удаляет refresh-token)
+      responses:
+        '204':
+          description: No Content
+  /api/users/{id}:
+    get:
+      summary: Получить профиль пользователя
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/User'
+    patch:
+      summary: Обновить профиль
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                avatar:
+                  type: string
+      responses:
+        '200':
+          description: OK
+  /api/servers:
+    post:
+      summary: Создать сервер
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                visibility:
+                  type: string
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Server'
+    get:
+      summary: Список серверов пользователя
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+  /api/servers/{serverId}/channels:
+    get:
+      summary: Список каналов сервера
+      parameters:
+        - in: path
+          name: serverId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Создать канал в сервере
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: serverId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name,type]
+              properties:
+                name:
+                  type: string
+                type:
+                  type: string
+                  enum: [text, voice]
+      responses:
+        '201':
+          description: Created
+  /api/channels/{channelId}/messages:
+    get:
+      summary: Список сообщений канала (курсорная пагинация)
+      parameters:
+        - in: path
+          name: channelId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: cursor
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Отправить сообщение
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: channelId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMessage'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Message'
+  /api/messages/{messageId}:
+    patch:
+      summary: Редактировать сообщение
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: messageId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+      responses:
+        '200':
+          description: OK
+    delete:
+      summary: Удалить сообщение
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: messageId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: No Content
+  /api/dm/threads:
+    post:
+      summary: Создать DM тред
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [participantIds]
+              properties:
+                participantIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/DMThread'
+    get:
+      summary: Список DM тредов
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+  /api/notifications:
+    get:
+      summary: Список уведомлений
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+  /api/rtc/sessions:
+    post:
+      summary: Создать RTC сессию (встречу)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                serverId:
+                  type: string
+                  format: uuid
+                channelId:
+                  type: string
+                  format: uuid
+                title:
+                  type: string
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/RTCSession'
+  /api/push/subscribe:
+    post:
+      summary: Подписка на Web Push
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                subscription:
+                  type: object
+      responses:
+        '201':
+          description: Subscribed
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: auth
+    description: Аутентификация
+  - name: users
+    description: Пользователи
+  - name: servers
+    description: Серверы и каналы
+  - name: messages
+    description: Сообщения
+  - name: dm
+    description: Личные сообщения
+  - name: rtc
+    description: WebRTC сессии
+  - name: notifications
+    description: Уведомления

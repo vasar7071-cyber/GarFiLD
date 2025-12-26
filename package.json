@@ -1,0 +1,9 @@
+{
+  "name": "chatx-monorepo",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "dev:backend": "pnpm --filter @chatx/backend dev",
+    "dev:frontend": "pnpm --filter @chatx/frontend dev"
+  }
+}

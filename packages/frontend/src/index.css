@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { height: 100%; }
+body { @apply bg-gray-50 text-gray-900; }
+
+/* Small helpers */
+.message-group { @apply mb-3 }
+.message-author { @apply text-xs text-gray-500 }
+.message-content { @apply mt-1 text-sm }
