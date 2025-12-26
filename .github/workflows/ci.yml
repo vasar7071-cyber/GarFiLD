@@ -21,8 +21,12 @@ jobs:
       - name: Install pnpm
         run: npm install -g pnpm
 
+      - name: Create pnpm workspace file
+        run: |
+          echo "packages:\n  - 'packages/*'" > pnpm-workspace.yaml
+
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: Run backend tests
         working-directory: packages/backend
